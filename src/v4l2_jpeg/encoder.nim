@@ -18,7 +18,6 @@ type
     strideUV*: uint32
     yData*: pointer
     uvData*: pointer
-
   JpegEncoder* = ref object
     fd*: cint
     width*: uint32
@@ -26,21 +25,16 @@ type
     opened*: bool
     outputFmt*: V4l2Format
     captureFmt*: V4l2Format
-
     outputPlanes*: array[VIDEO_MAX_PLANES, V4l2Plane]
     capturePlanes*: array[VIDEO_MAX_PLANES, V4l2Plane]
-
     outputBuf*: V4l2Buffer
     captureBuf*: V4l2Buffer
-
     outputMap0*: pointer
     outputMap1*: pointer
     captureMap0*: pointer
-
     outputLen0*: int
     outputLen1*: int
     captureLen0*: int
-
     outputStreaming*: bool
     captureStreaming*: bool
 
@@ -124,7 +118,7 @@ proc cleanupPartial(enc: var JpegEncoder) =
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc ensureDimensions(enc: JpegEncoder, src: Nm12ImageView): HJResult[void] =
+proc ensureDimensions(enc: JpegEncoder, src: Nm12ImageView): JpegResult[void] =
   if src.width != enc.width or src.height != enc.height:
     return err(makeError(
       "NM12 image size mismatch: expected " &
@@ -152,7 +146,7 @@ proc ensureDimensions(enc: JpegEncoder, src: Nm12ImageView): HJResult[void] =
 proc copyNm12ToMappedBuffer(
     enc: JpegEncoder,
     src: Nm12ImageView
-): HJResult[void] =
+): JpegResult[void] =
 
   let dimCheck = ensureDimensions(enc, src)
   if dimCheck.isErr:
@@ -207,7 +201,7 @@ proc prepareBuffersForQueue(enc: JpegEncoder) =
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc initializeOutputBuffers(enc: var JpegEncoder): HJResult[void] =
+proc initializeOutputBuffers(enc: var JpegEncoder): JpegResult[void] =
   let req = requestBuffers(enc.fd, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, 1)
   if req.isErr:
     return err(req.error)
@@ -245,7 +239,7 @@ proc initializeOutputBuffers(enc: var JpegEncoder): HJResult[void] =
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc initializeCaptureBuffers(enc: var JpegEncoder): HJResult[void] =
+proc initializeCaptureBuffers(enc: var JpegEncoder): JpegResult[void] =
   let req = requestBuffers(enc.fd, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, 1)
   if req.isErr:
     return err(req.error)
@@ -274,7 +268,7 @@ proc initializeCaptureBuffers(enc: var JpegEncoder): HJResult[void] =
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc startStreamingIfNeeded(enc: JpegEncoder): HJResult[void] =
+proc startStreamingIfNeeded(enc: JpegEncoder): JpegResult[void] =
   if not enc.outputStreaming:
     let r = streamOn(enc.fd, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
     if r.isErr:
@@ -305,7 +299,7 @@ proc open*(
     device: string = "/dev/video0",
     width: uint32,
     height: uint32
-): HJResult[JpegEncoder] =
+): JpegResult[JpegEncoder] =
 
   var enc = JpegEncoder(
     fd: -1,
@@ -346,7 +340,7 @@ proc open*(
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc close*(enc: var JpegEncoder): HJResult[void] =
+proc close*(enc: var JpegEncoder): JpegResult[void] =
   if enc.isNil:
     return ok()
 
@@ -361,7 +355,7 @@ proc close*(enc: var JpegEncoder): HJResult[void] =
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc encode*(enc: JpegEncoder, src: Nm12ImageView): HJResult[seq[uint8]] =
+proc encode*(enc: JpegEncoder, src: Nm12ImageView): JpegResult[seq[uint8]] =
   if enc.isNil or not enc.opened:
     return err(makeError("JPEG encoder is not open"))
 
@@ -412,7 +406,7 @@ proc encode*(
     width, height: uint32,
     strideY, strideUV: uint32,
     yData, uvData: pointer
-): HJResult[seq[uint8]] =
+): JpegResult[seq[uint8]] =
   let view = Nm12ImageView(
     width: width,
     height: height,
@@ -429,7 +423,7 @@ proc encode*(
 proc encode*(
     enc: JpegEncoder,
     yData, uvData: pointer
-): HJResult[seq[uint8]] =
+): JpegResult[seq[uint8]] =
   result = enc.encode(
     enc.width,
     enc.height,
@@ -450,7 +444,7 @@ proc encodeNm12File*(
     enc: JpegEncoder,
     yData: pointer,
     uvData: pointer
-): HJResult[seq[uint8]] =
+): JpegResult[seq[uint8]] =
   let view = Nm12ImageView(
     width: enc.width,
     height: enc.height,

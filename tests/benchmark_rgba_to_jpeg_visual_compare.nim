@@ -111,7 +111,7 @@ proc allocNv12(width, height: int): Nv12Image =
   result.y = newSeq[uint8](width * height)
   result.uv = newSeq[uint8](width * height div 2)
 
-proc nv12ViewForHyperJpeg(image: var Nv12Image): Nm12ImageView =
+proc nv12ViewForV4L2Jpeg(image: var Nv12Image): Nm12ImageView =
   if image.y.len == 0 or image.uv.len == 0:
     fail("NV12 image has empty planes")
 
@@ -192,7 +192,7 @@ proc main() =
   defer:
     discard encoder.close()
 
-  var view = nv12ViewForHyperJpeg(nv12)
+  var view = nv12ViewForV4L2Jpeg(nv12)
 
   echo "== RGBA -> NV12 -> HW JPEG visual compare benchmark =="
   echo "width = ", width

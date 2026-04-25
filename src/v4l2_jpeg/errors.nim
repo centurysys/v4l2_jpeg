@@ -6,26 +6,26 @@ export results
 # Error type aliases
 # ------------------------------------------------------------------------------
 type
-  HyperJpegError* = object of CatchableError
-  HE* = ref HyperJpegError
-  HJResult*[T] = Result[T, HE]
+  V4L2JpegError* = object of CatchableError
+  VJE* = ref V4L2JpegError
+  JpegResult*[T] = Result[T, VJE]
 
 # ------------------------------------------------------------------------------
 # Constructors
 # ------------------------------------------------------------------------------
-proc makeError*(msg: string): HE =
-  result = newException(HyperJpegError, msg)
+proc makeError*(msg: string): VJE =
+  result = newException(V4L2JpegError, msg)
 
 # ------------------------------------------------------------------------------
 # OS / ioctl helpers
 # ------------------------------------------------------------------------------
-proc makeIoctlError*(op: string; code: OSErrorCode = osLastError()): HE =
-  result = newException(HyperJpegError,
+proc makeIoctlError*(op: string; code: OSErrorCode = osLastError()): VJE =
+  result = newException(V4L2JpegError,
     &"{op} failed: errno={int(code)} ({osErrorMsg(code)})"
   )
 
 proc raiseIoctlError*(op: string) {.noreturn.} =
   raise makeIoctlError(op)
 
-proc failIoctl*[T](op: string): HJResult[T] =
-  result = err[T, HE](makeIoctlError(op))
+proc failIoctl*[T](op: string): JpegResult[T] =
+  result = err[T, VJE](makeIoctlError(op))

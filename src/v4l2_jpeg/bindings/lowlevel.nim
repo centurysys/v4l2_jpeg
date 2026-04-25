@@ -13,7 +13,7 @@ import ./types
 # xioctl
 # ------------------------------------------------------------------------------
 proc xioctl*(fd: cint, request: culong, argp: pointer, opName: string):
-    HJResult[cint] =
+    JpegResult[cint] =
   while true:
     let rc = ioctl(fd, request, argp)
     if rc >= 0:
@@ -31,7 +31,7 @@ proc xioctl*(fd: cint, request: culong, argp: pointer, opName: string):
 # ------------------------------------------------------------------------------
 # openDevice
 # ------------------------------------------------------------------------------
-proc openDevice*(path: string): HJResult[cint] =
+proc openDevice*(path: string): JpegResult[cint] =
   let fd = open(path, O_RDWR)
   if fd < 0:
     return err(makeIoctlError("open"))
@@ -40,7 +40,7 @@ proc openDevice*(path: string): HJResult[cint] =
 # ------------------------------------------------------------------------------
 # closeDevice
 # ------------------------------------------------------------------------------
-proc closeDevice*(fd: cint): HJResult[void] =
+proc closeDevice*(fd: cint): JpegResult[void] =
   if close(fd) < 0:
     return err(makeIoctlError("close"))
   ok()
@@ -53,7 +53,7 @@ proc closeDevice*(fd: cint): HJResult[void] =
 # setOutputFormatNm12m
 # ------------------------------------------------------------------------------
 proc setOutputFormatNm12m*(fd: cint, width, height: uint32,
-    colorspace: uint32 = V4L2_COLORSPACE_SRGB): HJResult[V4l2Format] =
+    colorspace: uint32 = V4L2_COLORSPACE_SRGB): JpegResult[V4l2Format] =
   var fmt: V4l2Format
   zeroMem(addr fmt, sizeof(fmt))
   fmt.type_field = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE
@@ -71,7 +71,7 @@ proc setOutputFormatNm12m*(fd: cint, width, height: uint32,
 # ------------------------------------------------------------------------------
 # setCaptureFormatJpeg
 # ------------------------------------------------------------------------------
-proc setCaptureFormatJpeg*(fd: cint, width, height: uint32): HJResult[V4l2Format] =
+proc setCaptureFormatJpeg*(fd: cint, width, height: uint32): JpegResult[V4l2Format] =
   var fmt: V4l2Format
   zeroMem(addr fmt, sizeof(fmt))
   fmt.type_field = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
@@ -92,7 +92,7 @@ proc setCaptureFormatJpeg*(fd: cint, width, height: uint32): HJResult[V4l2Format
 # requestBuffers
 # ------------------------------------------------------------------------------
 proc requestBuffers*(fd: cint, bufType: uint32, count: uint32):
-    HJResult[V4l2RequestBuffers] =
+    JpegResult[V4l2RequestBuffers] =
   var req: V4l2RequestBuffers
   zeroMem(addr req, sizeof(req))
   req.count = count
@@ -107,7 +107,7 @@ proc requestBuffers*(fd: cint, bufType: uint32, count: uint32):
 # queryBuffer
 # ------------------------------------------------------------------------------
 proc queryBuffer*(fd: cint, bufType: uint32, index: uint32, planes: ptr V4l2Plane):
-    HJResult[V4l2Buffer] =
+    JpegResult[V4l2Buffer] =
   var buf: V4l2Buffer
   zeroMem(addr buf, sizeof(buf))
   buf.type_field = bufType
@@ -127,7 +127,7 @@ proc queryBuffer*(fd: cint, bufType: uint32, index: uint32, planes: ptr V4l2Plan
 # ------------------------------------------------------------------------------
 # mapPlane
 # ------------------------------------------------------------------------------
-proc mapPlane*(fd: cint, length: int, offset: Off): HJResult[pointer] =
+proc mapPlane*(fd: cint, length: int, offset: Off): JpegResult[pointer] =
   let p = mmap(nil, length, PROT_READ or PROT_WRITE, MAP_SHARED, fd, offset)
   if p == cast[pointer](-1):
     return err(makeIoctlError("mmap"))
@@ -136,7 +136,7 @@ proc mapPlane*(fd: cint, length: int, offset: Off): HJResult[pointer] =
 # ------------------------------------------------------------------------------
 # unmapPlane
 # ------------------------------------------------------------------------------
-proc unmapPlane*(p: pointer, length: int): HJResult[void] =
+proc unmapPlane*(p: pointer, length: int): JpegResult[void] =
   if p != nil:
     if munmap(p, length) < 0:
       return err(makeIoctlError("munmap"))
@@ -150,7 +150,7 @@ proc unmapPlane*(p: pointer, length: int): HJResult[void] =
 # ------------------------------------------------------------------------------
 # queueBuffer
 # ------------------------------------------------------------------------------
-proc queueBuffer*(fd: cint, buf: var V4l2Buffer): HJResult[void] =
+proc queueBuffer*(fd: cint, buf: var V4l2Buffer): JpegResult[void] =
   let rc = xioctl(fd, VIDIOC_QBUF, addr buf, "VIDIOC_QBUF")
   if rc.isErr:
     return err(rc.error)
@@ -159,7 +159,7 @@ proc queueBuffer*(fd: cint, buf: var V4l2Buffer): HJResult[void] =
 # ------------------------------------------------------------------------------
 # dequeueBuffer
 # ------------------------------------------------------------------------------
-proc dequeueBuffer*(fd: cint, buf: var V4l2Buffer): HJResult[void] =
+proc dequeueBuffer*(fd: cint, buf: var V4l2Buffer): JpegResult[void] =
   let rc = xioctl(fd, VIDIOC_DQBUF, addr buf, "VIDIOC_DQBUF")
   if rc.isErr:
     return err(rc.error)
@@ -172,7 +172,7 @@ proc dequeueBuffer*(fd: cint, buf: var V4l2Buffer): HJResult[void] =
 # ------------------------------------------------------------------------------
 # streamOn
 # ------------------------------------------------------------------------------
-proc streamOn*(fd: cint, bufType: uint32): HJResult[void] =
+proc streamOn*(fd: cint, bufType: uint32): JpegResult[void] =
   var t = bufType
   let rc = xioctl(fd, VIDIOC_STREAMON, addr t, "VIDIOC_STREAMON")
   if rc.isErr:
@@ -182,7 +182,7 @@ proc streamOn*(fd: cint, bufType: uint32): HJResult[void] =
 # ------------------------------------------------------------------------------
 # streamOff
 # ------------------------------------------------------------------------------
-proc streamOff*(fd: cint, bufType: uint32): HJResult[void] =
+proc streamOff*(fd: cint, bufType: uint32): JpegResult[void] =
   var t = bufType
   let rc = xioctl(fd, VIDIOC_STREAMOFF, addr t, "VIDIOC_STREAMOFF")
   if rc.isErr:
@@ -196,7 +196,7 @@ proc streamOff*(fd: cint, bufType: uint32): HJResult[void] =
 # ------------------------------------------------------------------------------
 # encoderCmdStart
 # ------------------------------------------------------------------------------
-proc encoderCmdStart*(fd: cint): HJResult[void] =
+proc encoderCmdStart*(fd: cint): JpegResult[void] =
   var cmd: V4l2EncoderCmd
   zeroMem(addr cmd, sizeof(cmd))
   cmd.cmd = V4L2_ENC_CMD_START
