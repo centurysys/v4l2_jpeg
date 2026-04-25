@@ -45,6 +45,17 @@ proc closeDevice*(fd: cint): JpegResult[void] =
     return err(makeIoctlError("close"))
   ok()
 
+# ------------------------------------------------------------------------------
+# Capability
+# ------------------------------------------------------------------------------
+proc queryCapability*(fd: cint): JpegResult[V4l2Capability] =
+  var cap: V4l2Capability
+
+  if ioctl(fd, VIDIOC_QUERYCAP, addr cap) < 0:
+    return failIoctl[V4l2Capability]("VIDIOC_QUERYCAP")
+
+  result = ok(cap)
+
 # ==============================================================================
 # Format
 # ==============================================================================

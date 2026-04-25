@@ -395,8 +395,9 @@ proc encode*(enc: JpegEncoder, src: Nm12ImageView): JpegResult[seq[uint8]] =
   if jpegLen <= 0:
     return err(makeError("JPEG encoder returned empty output"))
 
-  result = ok(newSeq[uint8](jpegLen))
-  copyMem(addr result.get[0], enc.captureMap0, jpegLen)
+  var buf = newSeq[uint8](jpegLen)
+  copyMem(addr buf[0], enc.captureMap0, jpegLen)
+  result = buf.ok
 
 # ------------------------------------------------------------------------------
 #

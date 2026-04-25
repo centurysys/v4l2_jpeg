@@ -40,6 +40,11 @@ var
   VIDIOC_STREAMON* {.importc: "v4l2_jpeg_vidioc_streamon", header: "v4l2_consts.h".}: culong
   VIDIOC_STREAMOFF* {.importc: "v4l2_jpeg_vidioc_streamoff", header: "v4l2_consts.h".}: culong
   VIDIOC_ENCODER_CMD* {.importc: "v4l2_jpeg_vidioc_encoder_cmd", header: "v4l2_consts.h".}: culong
+  VIDIOC_ENUM_FMT* {.importc: "v4l2_jpeg_vidioc_enum_fmt", header: "v4l2_consts.h".}: culong
+  V4L2_CAP_VIDEO_M2M* {.importc: "v4l2_jpeg_v4l2_cap_video_m2m", header: "v4l2_consts.h".}: uint32
+  V4L2_CAP_VIDEO_M2M_MPLANE* {.importc: "v4l2_jpeg_v4l2_cap_video_m2m_mplane", header: "v4l2_consts.h".}: uint32
+  V4L2_CAP_STREAMING* {.importc: "v4l2_jpeg_v4l2_cap_streaming", header: "v4l2_consts.h".}: uint32
+  V4L2_CAP_DEVICE_CAPS* {.importc: "v4l2_jpeg_v4l2_cap_device_caps", header: "v4l2_consts.h".}: uint32
 
 type
   V4l2Plane* = struct_v4l2_plane
@@ -48,6 +53,7 @@ type
   V4l2RequestBuffers* = struct_v4l2_requestbuffers
   V4l2Capability* = struct_v4l2_capability
   V4l2EncoderCmd* = struct_v4l2_encoder_cmd
+  V4l2FormatDescription* = struct_v4l2_fmtdesc
 
 const
   VIDEO_MAX_PLANES* = 8

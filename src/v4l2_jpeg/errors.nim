@@ -28,4 +28,4 @@ proc raiseIoctlError*(op: string) {.noreturn.} =
   raise makeIoctlError(op)
 
 proc failIoctl*[T](op: string): JpegResult[T] =
-  result = err[T, VJE](makeIoctlError(op))
+  result = makeIoctlError(op).err
