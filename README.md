@@ -1,40 +1,110 @@
 # v4l2_jpeg
 
-## Overview
-`v4l2_jpeg` is an ultra-fast JPEG encoder for embedded Linux systems using V4L2 M2M hardware acceleration.
+V4L2 M2M JPEG encoder library for Linux (Nim).
 
-This implementation is designed for Texas Instruments AM67A (e5010 JPEG encoder) and achieves extremely high performance compared to software encoders like libjpeg-turbo.
+This library provides a simple, high-level API to use hardware JPEG
+encoders (e.g. TI E5010 on AM67A) via V4L2, with automatic device
+detection and quality control.
 
-## Performance
-
-Measured on AM67A (Cortex-A53 environment):
-
-- Resolution: 1920x1080 (Full HD)
-- Quality: 90
-- Encoding time: **~7.5 ms per frame**
-
-This is significantly faster than CPU-based JPEG encoding.
+------------------------------------------------------------------------
 
 ## Features
 
-- Hardware-accelerated JPEG encoding via V4L2 M2M
-- NV12/NM12 input support
-- Low-latency encoding
-- Designed for real-time pipelines
-- Nim-friendly API
+-   Automatic V4L2 JPEG encoder detection
+-   NV12 / NM12 input support
+-   Hardware-accelerated JPEG encoding
+-   Adjustable JPEG quality (via V4L2 controls)
+-   Simple, reusable API
+-   Zero-copy friendly design
 
-## Notes
+------------------------------------------------------------------------
 
-- This implementation is **hardware-dependent**
-- Currently verified only on:
-  - TI AM67A (e5010 JPEG encoder)
-- Requires proper V4L2 driver support
+## Requirements
 
-## Typical Pipeline
+-   Linux with V4L2 M2M support
+-   A JPEG encoder device (e.g. `/dev/videoX`)
+-   Supported pixel formats:
+    -   Input: NV12 / NM12
+    -   Output: JPEG
 
+------------------------------------------------------------------------
+
+## Installation
+
+Add as a Nimble dependency or clone into your project.
+
+------------------------------------------------------------------------
+
+## Quick Example
+
+``` nim
+import v4l2_jpeg
+
+let enc = ?JpegEncoder.open(1920, 1080)
+
+let jpeg = ?enc.encode(frame)
+echo jpeg.len
 ```
-NV12 input -> v4l2_jpeg -> JPEG output
+
+------------------------------------------------------------------------
+
+## Device Selection
+
+If no device is specified, the library automatically selects a usable
+JPEG encoder:
+
+``` nim
+let enc = ?JpegEncoder.open(1920, 1080)
 ```
 
-For best performance, avoid RGB/RGBA conversions and stay in YUV formats.
+To specify manually:
 
+``` nim
+let enc = ?JpegEncoder.open(1920, 1080, device="/dev/video0")
+```
+
+------------------------------------------------------------------------
+
+## Quality Control
+
+Set default quality at open:
+
+``` nim
+let enc = ?JpegEncoder.open(1920, 1080, quality=90)
+```
+
+Override per encode:
+
+``` nim
+let jpeg = ?enc.encode(frame, quality=70)
+```
+
+------------------------------------------------------------------------
+
+## Performance
+
+Typical performance (AM67A + E5010):
+
+-   1920x1080 NV12 → JPEG: \~7--8 ms per frame
+
+------------------------------------------------------------------------
+
+## Design Notes
+
+-   Uses V4L2 M2M API directly (no GStreamer dependency)
+-   Separates low-level bindings from high-level API
+-   Designed to integrate with libyuv for color conversion
+
+------------------------------------------------------------------------
+
+## Future Work
+
+-   RGBA/RGB support via libyuv integration
+-   TurboJPEG fallback
+-   H.264/HEVC encoder support
+
+------------------------------------------------------------------------
+
+## License
+
+MIT
