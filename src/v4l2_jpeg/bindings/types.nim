@@ -45,6 +45,8 @@ var
   V4L2_CAP_VIDEO_M2M_MPLANE* {.importc: "v4l2_jpeg_v4l2_cap_video_m2m_mplane", header: "v4l2_consts.h".}: uint32
   V4L2_CAP_STREAMING* {.importc: "v4l2_jpeg_v4l2_cap_streaming", header: "v4l2_consts.h".}: uint32
   V4L2_CAP_DEVICE_CAPS* {.importc: "v4l2_jpeg_v4l2_cap_device_caps", header: "v4l2_consts.h".}: uint32
+  V4L2_CID_JPEG_COMPRESSION_QUALITY* {.importc: "v4l2_jpeg_v4l2_cid_jpeg_compression_quality", header: "v4l2_consts.h".}: uint32
+  VIDIOC_S_CTRL* {.importc: "v4l2_jpeg_vidioc_s_ctrl", header: "v4l2_consts.h".}: culong
 
 type
   V4l2Plane* = struct_v4l2_plane
@@ -54,6 +56,7 @@ type
   V4l2Capability* = struct_v4l2_capability
   V4l2EncoderCmd* = struct_v4l2_encoder_cmd
   V4l2FormatDescription* = struct_v4l2_fmtdesc
+  V4l2Control* = struct_v4l2_control
 
 const
   VIDEO_MAX_PLANES* = 8

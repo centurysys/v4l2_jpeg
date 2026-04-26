@@ -24,6 +24,7 @@ extern const uint32_t v4l2_jpeg_v4l2_cap_video_m2m;
 extern const uint32_t v4l2_jpeg_v4l2_cap_video_m2m_mplane;
 extern const uint32_t v4l2_jpeg_v4l2_cap_streaming;
 extern const uint32_t v4l2_jpeg_v4l2_cap_device_caps;
+extern const uint32_t v4l2_jpeg_v4l2_cid_jpeg_compression_quality;
 
 extern const uint32_t v4l2_jpeg_v4l2_enc_cmd_start;
 extern const uint32_t v4l2_jpeg_v4l2_enc_cmd_stop;
@@ -39,6 +40,7 @@ extern const unsigned long v4l2_jpeg_vidioc_dqbuf;
 extern const unsigned long v4l2_jpeg_vidioc_streamon;
 extern const unsigned long v4l2_jpeg_vidioc_streamoff;
 extern const unsigned long v4l2_jpeg_vidioc_encoder_cmd;
+extern const unsigned long v4l2_jpeg_vidioc_s_ctrl;
 
 #ifdef __cplusplus
 }

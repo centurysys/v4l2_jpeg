@@ -3,6 +3,7 @@
 # ==============================================================================
 
 import std/[options, posix]
+import ./device
 import ./errors
 import ./bindings/[types, lowlevel]
 
@@ -37,6 +38,8 @@ type
     captureLen0*: int
     outputStreaming*: bool
     captureStreaming*: bool
+    device*: string
+    quality*: int
 
 
 # ==============================================================================
@@ -79,6 +82,47 @@ proc streamOffIgnoreError(fd: cint, bufType: uint32) =
 # ------------------------------------------------------------------------------
 proc releaseBuffersIgnoreError(fd: cint, bufType: uint32) =
   discard requestBuffers(fd, bufType, 0)
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc validateQuality(quality: int): JpegResult[void] =
+  if quality < 1 or quality > 100:
+    return err(makeError("JPEG quality must be in range 1..100"))
+
+  result = ok()
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc applyQuality(enc: JpegEncoder, quality: int): JpegResult[void] =
+  let valid = validateQuality(quality)
+  if valid.isErr:
+    return err(valid.error)
+
+  when declared(setJpegQuality):
+    let r = setJpegQuality(enc.fd, quality)
+    if r.isErr:
+      return err(r.error)
+
+  enc.quality = quality
+  result = ok()
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc resolveDevicePath(device: string): JpegResult[string] =
+  if device.len > 0:
+    return ok(device)
+
+  let found = findJpegEncoderDevice()
+  if found.isErr:
+    return err(found.error)
+
+  if found.get().isNone:
+    return err(makeError("no usable V4L2 JPEG encoder device found"))
+
+  result = ok(found.get().get().path)
 
 # ------------------------------------------------------------------------------
 #
@@ -296,18 +340,30 @@ proc startStreamingIfNeeded(enc: JpegEncoder): JpegResult[void] =
 # ------------------------------------------------------------------------------
 proc open*(
     _: type JpegEncoder,
-    device: string = "/dev/video0",
     width: uint32,
-    height: uint32
+    height: uint32,
+    device: string = "",
+    quality: int = 90
 ): JpegResult[JpegEncoder] =
+
+  let pathResult = resolveDevicePath(device)
+  if pathResult.isErr:
+    return err(pathResult.error)
+  let path = pathResult.get
+
+  let qualityCheck = validateQuality(quality)
+  if qualityCheck.isErr:
+    return err(qualityCheck.error)
 
   var enc = JpegEncoder(
     fd: -1,
     width: width,
-    height: height
+    height: height,
+    device: path,
+    quality: quality
   )
 
-  let fdResult = openDevice(device)
+  let fdResult = openDevice(path)
   if fdResult.isErr:
     return err(fdResult.error)
   enc.fd = fdResult.get
@@ -323,6 +379,11 @@ proc open*(
     cleanupPartial(enc)
     return err(capFmt.error)
   enc.captureFmt = capFmt.get
+
+  let qualityResult = applyQuality(enc, quality)
+  if qualityResult.isErr:
+    cleanupPartial(enc)
+    return err(qualityResult.error)
 
   let initOut = initializeOutputBuffers(enc)
   if initOut.isErr:
@@ -347,6 +408,15 @@ proc close*(enc: var JpegEncoder): JpegResult[void] =
   cleanupPartial(enc)
   ok()
 
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc setQuality*(enc: JpegEncoder, quality: int): JpegResult[void] =
+  if enc.isNil or not enc.opened:
+    return err(makeError("JPEG encoder is not open"))
+
+  result = applyQuality(enc, quality)
+
 
 # ==============================================================================
 # Encoding
@@ -355,9 +425,18 @@ proc close*(enc: var JpegEncoder): JpegResult[void] =
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc encode*(enc: JpegEncoder, src: Nm12ImageView): JpegResult[seq[uint8]] =
+proc encode*(
+    enc: JpegEncoder,
+    src: Nm12ImageView,
+    quality: int = -1
+): JpegResult[seq[uint8]] =
   if enc.isNil or not enc.opened:
     return err(makeError("JPEG encoder is not open"))
+
+  if quality >= 0 and quality != enc.quality:
+    let qualityResult = enc.setQuality(quality)
+    if qualityResult.isErr:
+      return err(qualityResult.error)
 
   let copyResult = copyNm12ToMappedBuffer(enc, src)
   if copyResult.isErr:
@@ -396,8 +475,9 @@ proc encode*(enc: JpegEncoder, src: Nm12ImageView): JpegResult[seq[uint8]] =
     return err(makeError("JPEG encoder returned empty output"))
 
   var buf = newSeq[uint8](jpegLen)
-  copyMem(addr buf[0], enc.captureMap0, jpegLen)
-  result = buf.ok
+  if jpegLen > 0:
+    copyMem(addr buf[0], enc.captureMap0, jpegLen)
+  result = ok(buf)
 
 # ------------------------------------------------------------------------------
 #
@@ -406,7 +486,8 @@ proc encode*(
     enc: JpegEncoder,
     width, height: uint32,
     strideY, strideUV: uint32,
-    yData, uvData: pointer
+    yData, uvData: pointer,
+    quality: int = -1
 ): JpegResult[seq[uint8]] =
   let view = Nm12ImageView(
     width: width,
@@ -416,14 +497,15 @@ proc encode*(
     yData: yData,
     uvData: uvData
   )
-  result = enc.encode(view)
+  result = enc.encode(view, quality = quality)
 
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
 proc encode*(
     enc: JpegEncoder,
-    yData, uvData: pointer
+    yData, uvData: pointer,
+    quality: int = -1
 ): JpegResult[seq[uint8]] =
   result = enc.encode(
     enc.width,
@@ -431,7 +513,8 @@ proc encode*(
     enc.width,
     enc.width,
     yData,
-    uvData
+    uvData,
+    quality = quality
   )
 
 # ==============================================================================
@@ -444,7 +527,8 @@ proc encode*(
 proc encodeNm12File*(
     enc: JpegEncoder,
     yData: pointer,
-    uvData: pointer
+    uvData: pointer,
+    quality: int = -1
 ): JpegResult[seq[uint8]] =
   let view = Nm12ImageView(
     width: enc.width,
@@ -454,4 +538,4 @@ proc encodeNm12File*(
     yData: yData,
     uvData: uvData
   )
-  enc.encode(view)
+  result = enc.encode(view, quality = quality)

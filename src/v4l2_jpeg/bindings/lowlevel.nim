@@ -56,11 +56,7 @@ proc queryCapability*(fd: cint): JpegResult[V4l2Capability] =
 
   result = ok(cap)
 
-# ==============================================================================
-# Format
-# ==============================================================================
 
-# ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 # enumFormat
 # ------------------------------------------------------------------------------
@@ -77,6 +73,11 @@ proc enumFormat*(fd: cint, bufType: uint32, index: uint32):
 
   result = ok(desc)
 
+# ==============================================================================
+# Format
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
 # setOutputFormatNm12m
 # ------------------------------------------------------------------------------
 proc setOutputFormatNm12m*(fd: cint, width, height: uint32,
@@ -215,6 +216,39 @@ proc streamOff*(fd: cint, bufType: uint32): JpegResult[void] =
   if rc.isErr:
     return err(rc.error)
   ok()
+
+
+# ==============================================================================
+# Controls
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# setControl
+# ------------------------------------------------------------------------------
+proc setControl*(fd: cint, id: uint32, value: int32): JpegResult[void] =
+  var ctrl: V4l2Control
+  zeroMem(addr ctrl, sizeof(ctrl))
+  ctrl.id = id
+  ctrl.value = value
+
+  let rc = xioctl(fd, VIDIOC_S_CTRL, addr ctrl, "VIDIOC_S_CTRL")
+  if rc.isErr:
+    return err(rc.error)
+
+  result = ok()
+
+# ------------------------------------------------------------------------------
+# setJpegQuality
+# ------------------------------------------------------------------------------
+proc setJpegQuality*(fd: cint, quality: int): JpegResult[void] =
+  if quality < 1 or quality > 100:
+    return err(makeError("JPEG quality must be in the range 1..100"))
+
+  result = setControl(
+    fd,
+    V4L2_CID_JPEG_COMPRESSION_QUALITY,
+    quality.int32
+  )
 
 # ==============================================================================
 # Encoder control
