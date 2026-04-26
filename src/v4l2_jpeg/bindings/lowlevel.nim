@@ -61,6 +61,22 @@ proc queryCapability*(fd: cint): JpegResult[V4l2Capability] =
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# enumFormat
+# ------------------------------------------------------------------------------
+proc enumFormat*(fd: cint, bufType: uint32, index: uint32):
+    JpegResult[V4l2FormatDescription] =
+  var desc: V4l2FormatDescription
+  zeroMem(addr desc, sizeof(desc))
+  desc.index = index
+  desc.type_field = bufType
+
+  let rc = xioctl(fd, VIDIOC_ENUM_FMT, addr desc, "VIDIOC_ENUM_FMT")
+  if rc.isErr:
+    return err(rc.error)
+
+  result = ok(desc)
+
 # setOutputFormatNm12m
 # ------------------------------------------------------------------------------
 proc setOutputFormatNm12m*(fd: cint, width, height: uint32,
