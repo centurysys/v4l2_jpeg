@@ -19,6 +19,7 @@ type
     strideUV*: uint32
     yData*: pointer
     uvData*: pointer
+  Nm12FillProc* = proc(view: Nm12ImageView): JpegResult[void] {.closure.}
   JpegEncoder* = ref object
     fd*: cint
     width*: uint32
@@ -158,6 +159,34 @@ proc cleanupPartial(enc: var JpegEncoder) =
     enc.fd = -1
 
   enc.opened = false
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc ensureOpen(enc: JpegEncoder): JpegResult[void] =
+  if enc.isNil or not enc.opened:
+    return err(makeError("JPEG encoder is not open"))
+
+  if enc.outputMap0.isNil or enc.outputMap1.isNil:
+    return err(makeError("JPEG encoder input buffer is not mapped"))
+
+  if enc.captureMap0.isNil:
+    return err(makeError("JPEG encoder capture buffer is not mapped"))
+
+  result = ok()
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc mappedInputView(enc: JpegEncoder): Nm12ImageView =
+  result = Nm12ImageView(
+    width: enc.width,
+    height: enc.height,
+    strideY: enc.width,
+    strideUV: enc.width,
+    yData: enc.outputMap0,
+    uvData: enc.outputMap1
+  )
 
 # ------------------------------------------------------------------------------
 #
@@ -425,22 +454,28 @@ proc setQuality*(enc: JpegEncoder, quality: int): JpegResult[void] =
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
-proc encode*(
+proc inputView*(enc: JpegEncoder): JpegResult[Nm12ImageView] =
+  let openCheck = ensureOpen(enc)
+  if openCheck.isErr:
+    return err(openCheck.error)
+
+  result = ok(mappedInputView(enc))
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc encodeMappedInput*(
     enc: JpegEncoder,
-    src: Nm12ImageView,
     quality: int = -1
 ): JpegResult[seq[uint8]] =
-  if enc.isNil or not enc.opened:
-    return err(makeError("JPEG encoder is not open"))
+  let openCheck = ensureOpen(enc)
+  if openCheck.isErr:
+    return err(openCheck.error)
 
   if quality >= 0 and quality != enc.quality:
     let qualityResult = enc.setQuality(quality)
     if qualityResult.isErr:
       return err(qualityResult.error)
-
-  let copyResult = copyNm12ToMappedBuffer(enc, src)
-  if copyResult.isErr:
-    return err(copyResult.error)
 
   prepareBuffersForQueue(enc)
 
@@ -478,6 +513,42 @@ proc encode*(
   if jpegLen > 0:
     copyMem(addr buf[0], enc.captureMap0, jpegLen)
   result = ok(buf)
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc withInputView*(
+    enc: JpegEncoder,
+    fill: Nm12FillProc,
+    quality: int = -1
+): JpegResult[seq[uint8]] =
+  let viewResult = enc.inputView()
+  if viewResult.isErr:
+    return err(viewResult.error)
+
+  let fillResult = fill(viewResult.get)
+  if fillResult.isErr:
+    return err(fillResult.error)
+
+  result = enc.encodeMappedInput(quality = quality)
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+proc encode*(
+    enc: JpegEncoder,
+    src: Nm12ImageView,
+    quality: int = -1
+): JpegResult[seq[uint8]] =
+  let openCheck = ensureOpen(enc)
+  if openCheck.isErr:
+    return err(openCheck.error)
+
+  let copyResult = copyNm12ToMappedBuffer(enc, src)
+  if copyResult.isErr:
+    return err(copyResult.error)
+
+  result = enc.encodeMappedInput(quality = quality)
 
 # ------------------------------------------------------------------------------
 #
